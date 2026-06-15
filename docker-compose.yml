@@ -1,0 +1,52 @@
+services:
+  # 1. Service untuk Database PostgreSQL
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: production_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Service Baru: Tukang Migrasi Database
+  database-migration:
+    image: migrate/migrate
+    container_name: production_migration
+    volumes:
+      - ./migrations:/migrations # Menghubungkan folder lokal ke dalam Docker
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://${DB_USER}:${DB_PASSWORD}@postgres-db:5432/${DB_NAME}?sslmode=disable",
+        "up",
+      ]
+    depends_on:
+      - postgres-db
+    restart: on-failure # Jika postgres belum siap menerima koneksi, dia akan coba lagi otomatis
+
+  # 3. Service untuk Aplikasi Go
+  app-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: production_go_api
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres-db
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+    depends_on:
+      - postgres-db
+      - database-migration # Aplikasi Go baru menyala SETELAH migrasi selesai
+
+volumes:
+  postgres_data:

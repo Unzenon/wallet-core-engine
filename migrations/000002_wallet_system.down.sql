@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS wallets;
+ALTER TABLE users DROP COLUMN IF EXISTS password;   
