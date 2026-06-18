@@ -25,6 +25,12 @@ func main() {
 	// Route Aplikasi Kita
 	http.HandleFunc("/register", userHandler.Register)
 	http.HandleFunc("/login", userHandler.Login)
+
+	// Healthcheck endpoint
+    http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("PONG! Go Wallet API is running smoothly."))
+    })
 	
 	// <-- 2. TAMBAHKAN BARIS TERPROTEKSI INI
 	http.HandleFunc("/topup", middleware.AuthMiddleware(userHandler.TopUp)) 
