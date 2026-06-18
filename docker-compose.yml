@@ -1,5 +1,4 @@
 services:
-  # 1. Service untuk Database PostgreSQL
   postgres-db:
     image: postgres:16-alpine
     container_name: production_postgres
@@ -11,13 +10,18 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Tambahan: Cek denyut nadi database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # 2. Service Baru: Tukang Migrasi Database
   database-migration:
     image: migrate/migrate
     container_name: production_migration
     volumes:
-      - ./migrations:/migrations # Menghubungkan folder lokal ke dalam Docker
+      - ./migrations:/migrations
     command:
       [
         "-path",
@@ -27,10 +31,10 @@ services:
         "up",
       ]
     depends_on:
-      - postgres-db
-    restart: on-failure # Jika postgres belum siap menerima koneksi, dia akan coba lagi otomatis
+      postgres-db:
+        condition: service_healthy # Tunggu sampai healthcheck bilang OK
+    restart: on-failure
 
-  # 3. Service untuk Aplikasi Go
   app-api:
     build:
       context: .
@@ -40,13 +44,15 @@ services:
       - "8080:8080"
     environment:
       - DB_HOST=postgres-db
-      - DB_PORT=${DB_PORT}
+      - DB_PORT=5432 # Gunakan port internal Docker
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
     depends_on:
-      - postgres-db
-      - database-migration # Aplikasi Go baru menyala SETELAH migrasi selesai
+      postgres-db:
+        condition: service_healthy
+      database-migration:
+        condition: service_completed_successfully # Tunggu migrasi BERHASIL baru app nyala
 
 volumes:
   postgres_data:
