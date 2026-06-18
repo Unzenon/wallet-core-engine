@@ -11,15 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5 # Naikkan ke v5 sekalian untuk mengurangi warning Node
         with:
           go-version: "1.22"
+          cache: false # Bypass cache corrupt
+
       - name: Run Tests
         run: go test -v ./...
 
   build-and-secure:
-    needs: test # Job ini nunggu 'test' sukses dulu
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,10 +37,10 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker Image (Local Load)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v5 # Atau naikkan ke @v6 jika tersedia
         with:
           context: .
-          load: true # PENTING: Simpan image di server GitHub dulu, JANGAN di-push!
+          load: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/wallet-core-engine:latest
 
       - name: Run Trivy Vulnerability Scanner
@@ -45,11 +48,10 @@ jobs:
         with:
           image-ref: "${{ secrets.DOCKERHUB_USERNAME }}/wallet-core-engine:latest"
           format: "table"
-          exit-code: "1" # Gagalkan pipeline kalau nemu virus/celah keamanan
+          exit-code: "1"
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH"
 
       - name: Push Docker Image to Docker Hub
-        # Step ini cuma akan dieksekusi kalau step Trivy di atas lolos (aman)
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/wallet-core-engine:latest
