@@ -37,3 +37,32 @@ resource "docker_container" "db" {
     name = docker_network.wallet_net.name
   }
 }
+
+resource "docker_image" "migrate_image" {
+  name         = "migrate/migrate"
+  keep_locally = true
+}
+
+resource "docker_container" "migration" {
+  name  = "tf_migration"
+  image = docker_image.migrate_image.image_id
+
+  volumes {
+    host_path      = abspath("${path.module}/../migrations")
+    container_path = "/migrations"
+  }
+
+  command = [
+    "-path",
+    "/migrations",
+    "-database",
+    "postgres://${var.db_user}:${var.db_password}@tf_postgres_db:5432/${var.db_name}?sslmode=disable",
+    "up"
+  ]
+
+  networks_advanced {
+    name = docker_network.wallet_net.name
+  }
+
+  depends_on = [docker_container.db]
+}
