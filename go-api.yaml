@@ -1,0 +1,41 @@
+# ==========================================
+# 1. Bagian Deployment (Ngatur Container/Pod)
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-api-deployment
+spec:
+  replicas: 2 # K8s bakal nyalain 2 container sekaligus buat load balancing!
+  selector:
+    matchLabels:
+      app: go-api
+  template:
+    metadata:
+      labels:
+        app: go-api
+    spec:
+      containers:
+        - name: go-api-container
+          # Penting: K8s butuh narik image dari Registry (DockerHub/GitLab/dll)
+          # Nggak bisa langsung build dari source code kayak docker-compose
+          image: username-dockerhub-lu/belajar-go-api:v1
+          ports:
+            - containerPort: 8080
+
+---
+# ==========================================
+# 2. Bagian Service (Ngatur Network/Port)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-api-service
+spec:
+  type: NodePort # Biar bisa diakses langsung dari laptop lu
+  selector:
+    app: go-api # Service ini bakal nyari Pod dengan label 'app: go-api'
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080 # Nanti lu akses API-nya lewat http://localhost:30080
